@@ -215,7 +215,7 @@ input[type=button], input[type=submit] {
 	background: #cde5ef;
 	border: 1px solid;
 	border-color: #b4ccce #b3c0c8 #9eb9c2;
-	border-radius: 16px;
+	border-radiusdius: 16px;
 	outline: 0;
 	-webkit-box-sizing: content-box;
 	-moz-box-sizing: content-box;

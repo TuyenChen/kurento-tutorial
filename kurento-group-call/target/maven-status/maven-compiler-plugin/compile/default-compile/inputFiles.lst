@@ -1,6 +1,6 @@
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/RoomManager.java
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/CallHandler.java
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/UserSession.java
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/UserRegistry.java
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/GroupCallApp.java
-/home/tuyen/nodeproject/kurento-tutorial-java/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/Room.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/Room.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/GroupCallApp.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/UserSession.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/RoomManager.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/CallHandler.java
+/home/dung/Desktop/kurento-tutorial/kurento-group-call/src/main/java/org/kurento/tutorial/groupcall/UserRegistry.java
