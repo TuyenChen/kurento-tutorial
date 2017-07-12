@@ -46,6 +46,7 @@ public class UserSession implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(UserSession.class);
 
   private final String name;
+  private final String role;
   private final WebSocketSession session;
 
   private final MediaPipeline pipeline;
@@ -54,11 +55,21 @@ public class UserSession implements Closeable {
   private final WebRtcEndpoint outgoingMedia;
   private final ConcurrentMap<String, WebRtcEndpoint> incomingMedia = new ConcurrentHashMap<>();
 
-  public UserSession(final String name, String roomName, final WebSocketSession session,
+
+  public UserSession() {
+    this.name = null;
+    this.session = null;
+    this.pipeline = null;
+    this.roomName = null;
+    this.outgoingMedia = null;
+    this.role = null;
+  }
+  public UserSession(final String name, String role, String roomName, final WebSocketSession session,
       MediaPipeline pipeline) {
 
     this.pipeline = pipeline;
     this.name = name;
+    this.role = role;
     this.session = session;
     this.roomName = roomName;
     this.outgoingMedia = new WebRtcEndpoint.Builder(pipeline).build();
@@ -88,6 +99,10 @@ public class UserSession implements Closeable {
 
   public String getName() {
     return name;
+  }
+
+  public String getRole() {
+    return role;
   }
 
   public WebSocketSession getSession() {

@@ -48,7 +48,7 @@ public class Room implements Closeable {
   private final ConcurrentMap<String, UserSession> participants = new ConcurrentHashMap<>();
   private final MediaPipeline pipeline;
   private final String name;
-  public UserSession boss;
+  public UserSession teacher;
 
   public String getName() {
     return name;
@@ -65,21 +65,28 @@ public class Room implements Closeable {
     this.close();
   }
 
-  public UserSession join(String userName, WebSocketSession session) throws IOException {
+  public UserSession join(String userName, String role, WebSocketSession session) throws IOException {
     log.info("ROOM {}: adding participant {}", userName, userName);
-    //first participant is boss
+    //first participant is teacher
     
-    if (this.boss == null){
-      boss = new UserSession(userName, this.name,session, this.pipeline);
-      serverCongNhanLaBoss();
-      participants.put(boss.getName(), boss);
-      return boss;
+    if(role.equals("teacher")) {
+      teacher = new UserSession(userName, role, this.name,session, this.pipeline);
+      serverCongNhanLateacher();//Gui danh sach participants da~ o? trong room
+      //Thong bao teacher vao` cho moi ng
+      for (final UserSession participant : this.getParticipants()) {
+        sendTeacherName(participant);
+      }
+      return teacher;
     }else{
-      final UserSession participant = new UserSession(userName, this.name, session, this.pipeline);
-      joinRoom(participant);
+      final UserSession participant = new UserSession(userName, role, this.name, session, this.pipeline);
       participants.put(participant.getName(), participant);
+      
+      joinRoom(participant);
+    
       sendParticipantNames(participant);
-      sendBossname(participant);
+      if (teacher != null){
+        sendTeacherName(participant);
+      }
       return participant;
     }
     
@@ -87,8 +94,10 @@ public class Room implements Closeable {
 
   public void leave(UserSession user) throws IOException {
     log.debug("PARTICIPANT {}: Leaving room {}", user.getName(), this.name);
-    this.removeParticipant(user.getName());
-    user.close();
+    if(user != null){
+      this.removeParticipant(user.getName());
+      user.close();
+    }
   }
 
   private Collection<String> joinRoom(UserSession newParticipant) throws IOException {
@@ -99,7 +108,7 @@ public class Room implements Closeable {
     final List<String> participantsList = new ArrayList<>(participants.values().size());
     log.debug("ROOM {}: notifying other participants of new participant {}", name,
         newParticipant.getName());
-    log.info("Send message New participant to all members");
+    log.info("Send message New participant: {} to all members", newParticipant.getName());
     for (final UserSession participant : participants.values()) {
       try {
         participant.sendMessage(newParticipantMsg);
@@ -108,56 +117,85 @@ public class Room implements Closeable {
       }
       participantsList.add(participant.getName());
     }
+    if (teacher != null){
+      teacher.sendMessage(newParticipantMsg);
+    }
 
     return participantsList;
   }
 
   private void removeParticipant(String name) throws IOException {
-    participants.remove(name);
+    
+    if (teacher!=null && name.equals(teacher.getName())) {
+      this.teacher = null;
+      final JsonObject teacherLeftJson = new JsonObject();
+      teacherLeftJson.addProperty("id", "teacherLeft");
+      teacherLeftJson.addProperty("name", name);
+      for (final UserSession participant : participants.values()) {
+        try {
+          participant.cancelVideoFrom(name);
+          participant.sendMessage(teacherLeftJson);
+        } catch (final IOException e) {
+          // unnotifiedParticipants.add(participant.getName());
+        }
+      }
+    }else {
+      participants.remove(name);
+      log.debug("ROOM {}: notifying all users that {} is leaving the room", this.name, name);
 
-    log.debug("ROOM {}: notifying all users that {} is leaving the room", this.name, name);
-
-    final List<String> unnotifiedParticipants = new ArrayList<>();
-    final JsonObject participantLeftJson = new JsonObject();
-    participantLeftJson.addProperty("id", "participantLeft");
-    participantLeftJson.addProperty("name", name);
-    for (final UserSession participant : participants.values()) {
-      try {
-        // participant.cancelVideoFrom(name);
-        participant.sendMessage(participantLeftJson);
-      } catch (final IOException e) {
-        unnotifiedParticipants.add(participant.getName());
+      final List<String> unnotifiedParticipants = new ArrayList<>();
+      final JsonObject participantLeftJson = new JsonObject();
+      participantLeftJson.addProperty("id", "participantLeft");
+      participantLeftJson.addProperty("name", name);
+      for (final UserSession participant : participants.values()) {
+        try {
+          // participant.cancelVideoFrom(name);
+          participant.sendMessage(participantLeftJson);
+        } catch (final IOException e) {
+          unnotifiedParticipants.add(participant.getName());
+        }
+      }
+      if (teacher!=null){
+        teacher.sendMessage(participantLeftJson);
+      }
+      if (!unnotifiedParticipants.isEmpty()) {
+        log.debug("ROOM {}: The users {} could not be notified that {} left the room", this.name,
+            unnotifiedParticipants, name);
       }
     }
 
-    if (!unnotifiedParticipants.isEmpty()) {
-      log.debug("ROOM {}: The users {} could not be notified that {} left the room", this.name,
-          unnotifiedParticipants, name);
+  }
+
+  public void serverCongNhanLateacher() throws IOException {
+    log.info("Thong bao {} la` teacher",teacher.getName());
+    final JsonArray participantsArray = new JsonArray();
+    for (final UserSession participant : this.getParticipants()) {
+        final JsonElement participantName = new JsonPrimitive(participant.getName());
+        participantsArray.add(participantName);
     }
 
+    final JsonObject existingParticipants4TMsg = new JsonObject();
+    existingParticipants4TMsg.addProperty("id", "thongBaoLaTeacher");
+    existingParticipants4TMsg.add("data", participantsArray);
+    log.info("TEACHER {}: sending a list of {} students", teacher.getName(),
+        participantsArray.size());
+    teacher.sendMessage(existingParticipants4TMsg);
   }
 
-  public void serverCongNhanLaBoss() throws IOException {
-    final JsonObject mayLaBossMsg = new JsonObject();
-    mayLaBossMsg.addProperty("id", "thongBaoLaBoss");
-    // mayLaBossMsg.add("data", boss.getName());
-    log.debug("Thong bao {} thang` la` BOSS",boss.getName());
-    boss.sendMessage(mayLaBossMsg);
-  }
 
-  public void sendBossname(UserSession user) throws IOException {
-    final JsonObject infoBossMsg = new JsonObject();
-    infoBossMsg.addProperty("id", "thongTinBoss");
-    infoBossMsg.addProperty("boss", boss.getName());
-    log.debug("PARTICIPANT {}: {} la` BOSS",user.getName(),boss.getName());
-    user.sendMessage(infoBossMsg);
+  public void sendTeacherName(UserSession user) throws IOException {
+    final JsonObject infoteacherMsg = new JsonObject();
+    infoteacherMsg.addProperty("id", "teacherInfo");
+    infoteacherMsg.addProperty("teacher", teacher.getName());
+    log.debug("PARTICIPANT {}: {} la` teacher",user.getName(),teacher.getName());
+    user.sendMessage(infoteacherMsg);
   }
   public void sendParticipantNames(UserSession user) throws IOException {
 
     final JsonArray participantsArray = new JsonArray();
-    //Gui danh sach participant cho new comer (tru` boss)
+    //Gui danh sach participant cho new comer (tru` teacher)
     for (final UserSession participant : this.getParticipants()) {
-      if (!participant.equals(user) && !participant.equals(boss)) {
+      if (participant != user) {
         final JsonElement participantName = new JsonPrimitive(participant.getName());
         participantsArray.add(participantName);
       }
@@ -177,6 +215,16 @@ public class Room implements Closeable {
 
   public UserSession getParticipant(String name) {
     return participants.get(name);
+  }
+  public UserSession getTeacher() {
+    return this.teacher;
+  }
+
+  public void broadcastMsg(JsonObject msg) throws IOException {
+    for (final UserSession participant : this.getParticipants()) {
+        participant.sendMessage(msg);
+      }
+      if(teacher!=null) {teacher.sendMessage(msg);}
   }
 
   @Override
