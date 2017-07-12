@@ -49,6 +49,7 @@ public class Room implements Closeable {
   private final MediaPipeline pipeline;
   private final String name;
   public UserSession teacher;
+  public UserSession speaker;
 
   public String getName() {
     return name;
@@ -219,7 +220,24 @@ public class Room implements Closeable {
   public UserSession getTeacher() {
     return this.teacher;
   }
+  public void standUp(String speakerName) throws IOException {
+    this.speaker = getParticipant(speakerName);
+    final JsonObject newSpeakerMsg = new JsonObject();
+    newSpeakerMsg.addProperty("id", "newSpeaker");
+    newSpeakerMsg.addProperty("name", speaker.getName());
 
+    log.info("Send message New Speaker: {} to all members", speaker.getName());
+    for (final UserSession participant : participants.values()) {
+      try {
+        participant.sendMessage(newSpeakerMsg);
+      } catch (final IOException e) {
+        log.debug("ROOM {}: participant {} could not be notified", name, participant.getName(), e);
+      }
+    }
+    if (teacher != null){
+      teacher.sendMessage(newSpeakerMsg);
+    }
+  }
   public void broadcastMsg(JsonObject msg) throws IOException {
     for (final UserSession participant : this.getParticipants()) {
         participant.sendMessage(msg);

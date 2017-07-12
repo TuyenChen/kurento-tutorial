@@ -148,6 +148,12 @@ select {
 	box-shadow: 2px 2px 1px #888888;
 	text-align: center;
 }
+#room #listNames .listStudent {
+	cursor: pointer;
+}
+#room #listNames .teacher {
+	background-color: #ed6e34;
+}
 
 .join {
 	position: relative;

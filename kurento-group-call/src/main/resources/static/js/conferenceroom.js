@@ -22,6 +22,7 @@ var rooms = {};
 var room;
 var name;
 var teacher;
+var speaker;
 
 window.onbeforeunload = function() {
 	ws.close();
@@ -54,6 +55,9 @@ ws.onmessage = function(message) {
 		break;
 	case 'newParticipantArrived':
 		onNewParticipant(parsedMessage);
+		break;
+	case 'newSpeaker':
+		onNewSpeaker(parsedMessage);
 		break;
 	case 'participantLeft':
 		onParticipantLeft(parsedMessage);
@@ -119,12 +123,67 @@ function onNewParticipant(request) {
 	var participant = new Student(request.name);
 	participants[request.name] = participant;
 }
+function onNewSpeaker(msg) {
+	speaker = new Speaker(msg.name);
+	console.log('Speaker: '+ speaker.name);
+	if (name === msg.name) {
+		var constraints = {
+		audio : true,
+		video : {
+			mandatory : {
+				maxWidth : 320,
+				maxFrameRate : 15,
+				minFrameRate : 15
+			}
+		}
+		};
+		console.log(name + " Ban duoc phat bieu trong phong: " + room);
+	
+		var video = speaker.getVideoElement();
+		var options = {
+		      localVideo: video,
+		      mediaConstraints: constraints,
+		      onicecandidate: speaker.onIceCandidate.bind(speaker)
+		    }
+		speaker.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options,
+			function (error) {
+			  if(error) {
+				  return console.error(error);
+			  }
+			  this.generateOffer (speaker.offerToReceiveVideo.bind(speaker));
+		});
+	} else {
+		
+		var video = speaker.getVideoElement();
+
+		var options = {
+	      remoteVideo: video,
+	      onicecandidate: speaker.onIceCandidate.bind(speaker)
+	    }
+		
+		speaker.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
+				function (error) {
+				  if(error) {
+					  return console.error(error);
+				  }
+				  this.generateOffer (speaker.offerToReceiveVideo.bind(speaker));
+		});;
+	}
+}
 
 function receiveVideoResponse(result) {
 	console.log('$$$$$$'+result.name+'$$$$$$');
-	participants[result.name].rtcPeer.processAnswer (result.sdpAnswer, function (error) {
-		if (error) return console.error (error);
-	});
+
+	if(speaker!==undefined && result.name === speaker.name) {
+		console.log('Speaker: '+ speaker.name);
+		speaker.rtcPeer.processAnswer (result.sdpAnswer, function (error) {
+			if (error) return console.error (error);
+		});
+	} else {
+		participants[result.name].rtcPeer.processAnswer (result.sdpAnswer, function (error) {
+			if (error) return console.error (error);
+		});
+	}
 }
 
 function callResponse(message) {
@@ -150,6 +209,19 @@ function chooseRoom(nameRoom) {
 	console.log("Send msg choose Room: "+nameRoom+". Name: "+name);
 	sendMessage(message);
 }
+
+function chooseSpeaker(nameStudent) {
+	if(name === teacher.name) {
+		var msg = {
+			id : "chooseSpeaker",
+			room : room,
+			speaker : nameStudent, 
+		};
+	console.log('Choose: '+nameStudent);
+	sendMessage(msg);
+	}
+}
+
 function hanhDongNhuTeacher(msg) {
 
 	var constraints = {
