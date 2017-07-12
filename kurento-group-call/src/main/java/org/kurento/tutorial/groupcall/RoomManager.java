@@ -17,6 +17,7 @@
 
 package org.kurento.tutorial.groupcall;
 
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -37,7 +38,30 @@ public class RoomManager {
   private KurentoClient kurento;
 
   private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, String> nameOfRooms = new ConcurrentHashMap<>();
+  public RoomManager() {
+    String roomName1 = "English";
+    String roomName2 = "Math";
+    String roomName3 = "Physical";
+    String roomName4 = "Chemistcal";
+    String roomName5 = "Music";
+    nameOfRooms.put(roomName1, roomName1);
+    nameOfRooms.put(roomName2, roomName2);
+    nameOfRooms.put(roomName3, roomName3);
+    nameOfRooms.put(roomName4, roomName4);
+    nameOfRooms.put(roomName5, roomName5);
 
+    // this.createRoom("Math");
+    // this.createRoom("Physical");
+    // this.createRoom("Chemistry");
+    // this.createRoom("Music");
+  }
+  public Collection<String> getAllRoomNames() {
+    return nameOfRooms.values();
+  }
+  public Collection<Room> getAllRooms() {
+    return rooms.values();
+  }
   /**
    * Looks for a room in the active room list.
    *
@@ -49,14 +73,24 @@ public class RoomManager {
   public Room getRoom(String roomName) {
     log.debug("Searching for room {}", roomName);
     Room room = rooms.get(roomName);
-
     if (room == null) {
+      log.info("create new room", roomName);
       log.debug("Room {} not existent. Will create now!", roomName);
       room = new Room(roomName, kurento.createMediaPipeline());
       rooms.put(roomName, room);
     }
     log.debug("Room {} found!", roomName);
     return room;
+  }
+
+  public void createRoom(String roomName) {
+    Room room = rooms.get(roomName);
+    if (room == null) {
+      log.debug("Room {} not existent. Will create now!", roomName);
+      room = new Room(roomName, kurento.createMediaPipeline());
+      rooms.put(roomName, room);
+    }
+    // return room;
   }
 
   /**

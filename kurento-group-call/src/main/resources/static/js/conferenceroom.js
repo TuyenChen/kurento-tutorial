@@ -17,7 +17,11 @@
 
 var ws = new WebSocket('wss://' + location.host + '/groupcall');
 var participants = {};
+var students = {};
+var rooms = {};
+var room;
 var name;
+var teacher;
 
 window.onbeforeunload = function() {
 	ws.close();
@@ -28,11 +32,22 @@ ws.onmessage = function(message) {
 	console.info('Received message: ' + message.data);
 
 	switch (parsedMessage.id) {
-	case 'thongBaoLaBoss':
-		hanhDongNhuBoss();
+	case 'chat':
+		$('#messages').append($('<li>').text(parsedMessage.name+': '+ parsedMessage.content));
 		break;
-	case 'thongTinBoss':
-		hanhDongNhuNoob(parsedMessage);
+	case 'loginFail':
+		console.log('login fail');
+		location.reload();
+		break;
+	case 'loginSuccess':
+		console.log('Login Success \n Array rooms:'+parsedMessage.data);
+		viewHall(parsedMessage.data); 
+		break;
+	case 'thongBaoLaTeacher':
+		hanhDongNhuTeacher(parsedMessage);
+		break;
+	case 'teacherInfo':
+		teacherComeIn(parsedMessage);
 		break;
 	case 'existingParticipants':
 		onExistingParticipants(parsedMessage);
@@ -42,6 +57,9 @@ ws.onmessage = function(message) {
 		break;
 	case 'participantLeft':
 		onParticipantLeft(parsedMessage);
+		break;
+	case 'teacherLeft':
+		onTeacherLeft(parsedMessage);
 		break;
 	case 'receiveVideoAnswer':
 		receiveVideoResponse(parsedMessage);
@@ -57,6 +75,27 @@ ws.onmessage = function(message) {
 	default:
 		console.error('Unrecognized message', parsedMessage);
 	}
+}
+function login() {
+	// ws = new WebSocket('wss://' + location.host + '/groupcall');
+	name = document.getElementById('name').value;
+	var password = document.getElementById('password').value;
+	var message = {
+		id : 'login',
+		name : name,
+		password : password,
+	}
+	sendMessage(message);
+}
+
+function viewHall(arrayRooms) {
+	document.getElementById('join').style.display = 'none';
+	document.getElementById('hall').style.display = 'block';
+	arrayRooms.forEach(newRoom);
+}
+function newRoom (nameRoom) {
+	var nroom = new Room(nameRoom);
+	rooms[nameRoom] = nroom;
 }
 
 function register() {
@@ -76,11 +115,13 @@ function register() {
 }
 
 function onNewParticipant(request) {
-	var participant = new ParticipantNoob(request.name);
+	console.log("******* Newbie"+request.name+" *******");
+	var participant = new Student(request.name);
 	participants[request.name] = participant;
 }
 
 function receiveVideoResponse(result) {
+	console.log('$$$$$$'+result.name+'$$$$$$');
 	participants[result.name].rtcPeer.processAnswer (result.sdpAnswer, function (error) {
 		if (error) return console.error (error);
 	});
@@ -96,7 +137,21 @@ function callResponse(message) {
 		});
 	}
 }
-function hanhDongNhuBoss() {
+function chooseRoom(nameRoom) {
+	document.getElementById('room-header').innerText = 'ROOM ' + nameRoom;
+	document.getElementById('hall').style.display = 'none';
+	document.getElementById('room').style.display = 'block';
+	var message = {
+		id : 'joinRoom',
+		name : name,
+		room : nameRoom,
+	}
+	room = nameRoom;
+	console.log("Send msg choose Room: "+nameRoom+". Name: "+name);
+	sendMessage(message);
+}
+function hanhDongNhuTeacher(msg) {
+
 	var constraints = {
 		audio : true,
 		video : {
@@ -108,33 +163,60 @@ function hanhDongNhuBoss() {
 		}
 	};
 	console.log(name + " registered in room " + room);
-	var participant = new Participant(name);
-	participants[name] = participant;
-	var video = participant.getVideoElement();
+	teacher = new Teacher(name);
+	participants[name] = teacher;
+	var video = teacher.getVideoElement();
 	var options = {
 	      localVideo: video,
 	      mediaConstraints: constraints,
-	      onicecandidate: participant.onIceCandidate.bind(participant)
+	      onicecandidate: teacher.onIceCandidate.bind(teacher)
 	    }
-	participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options,
+	teacher.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options,
 		function (error) {
 		  if(error) {
 			  return console.error(error);
 		  }
-		  this.generateOffer (participant.offerToReceiveVideo.bind(participant));
+		  this.generateOffer (teacher.offerToReceiveVideo.bind(teacher));
 	});
+	
+	msg.data.forEach(newStudent);
+
+} 
+function teacherComeIn(msg) {
+	console.log("TEACHERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR: "+msg.teacher);
+	teacher = new Teacher(msg.teacher);
+	participants[msg.teacher] = teacher;
+	var video = teacher.getVideoElement();
+
+	var options = {
+      remoteVideo: video,
+      onicecandidate: teacher.onIceCandidate.bind(teacher)
+    }
+    console.log("Number of PARTICIPANTS:\n"+participants.length);
+	
+	teacher.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
+			function (error) {
+			  if(error) {
+				  return console.error(error);
+			  }
+			  this.generateOffer (teacher.offerToReceiveVideo.bind(teacher));
+	});;
+	
 }
-function hanhDongNhuNoob(msg) {
-	receiveVideo(msg.boss);
-	newNoobJoin(name);
-}
+
 function newNoobJoin(name) {
 	console.log(name + " registered in room " + room);
-	var participant = new ParticipantNoob(name);
+	var participant = new Student(name);
 	participants[name] = participant;
 }
+function newStudent(name) {
+	console.log("Student: "+name + " come in room " + room);
+	var student = new Student(name);
+	students[name] = student;
+	participants[name] = student;
+}
 function onExistingParticipants(msg) {
-	// receiveVideo(msg.boss);
+	// receiveVideo(msg.Teacher);
 	// var constraints = {
 	// 	audio : true,
 	// 	video : {
@@ -177,8 +259,8 @@ function leaveRoom() {
 
 	document.getElementById('join').style.display = 'block';
 	document.getElementById('room').style.display = 'none';
-
-	ws.close();
+	document.getElementById('hall').innerHTML = '';
+	// ws.close();
 }
 
 function receiveVideo(sender) {
@@ -206,7 +288,11 @@ function onParticipantLeft(request) {
 	participant.dispose();
 	delete participants[request.name];
 }
-
+function onTeacherLeft(msg) {
+	console.log('Teacher left');
+	teacher.dispose();
+	teacher = null;
+}
 function sendMessage(message) {
 	var jsonMessage = JSON.stringify(message);
 	// console.log('Senging message: ' + jsonMessage);

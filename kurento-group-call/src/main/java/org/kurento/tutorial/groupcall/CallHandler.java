@@ -28,9 +28,12 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 /**
  * 
@@ -43,8 +46,9 @@ public class CallHandler extends TextWebSocketHandler {
 
   private static final Gson gson = new GsonBuilder().create();
 
+  public static final DataBaseUsers db = new DataBaseUsers();
   @Autowired
-  private RoomManager roomManager;
+  public RoomManager roomManager = new RoomManager();
 
   @Autowired
   private UserRegistry registry;
@@ -62,6 +66,12 @@ public class CallHandler extends TextWebSocketHandler {
     }
 
     switch (jsonMessage.get("id").getAsString()) {
+      case "chat": 
+        chatMessage(jsonMessage, session);
+        break;
+      case "login":
+        login(jsonMessage, session);
+        break;
       case "joinRoom":
         joinRoom(jsonMessage, session);
         break;
@@ -90,28 +100,60 @@ public class CallHandler extends TextWebSocketHandler {
 
   @Override
   public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-    log.info("this is session: {}",session);
+    log.info("This is afterConnectionClosed session: {}",session);
     UserSession user = registry.removeBySession(session);
-    roomManager.getRoom(user.getRoomName()).leave(user);
+    if(user.getRoomName() != null){
+      roomManager.getRoom(user.getRoomName()).leave(user);
+    }
     // registry.clear();
     // roomManager.clearAll();
+  }
+
+  private void chatMessage(JsonObject params, WebSocketSession session) throws IOException {
+    final String roomName = params.get("room").getAsString();
+    // final String name = params.get("name").getAsString();
+    // final String content = params.get("content").getAsString();
+    // log.info("User '{}' in room '{}' send mess: {} ",name, roomName,content);
+    Room room = roomManager.getRoom(roomName);
+    room.broadcastMsg(params);
+  }
+  private void login(JsonObject params, WebSocketSession session) throws IOException {
+    final String username = params.get("name").getAsString();
+    final String password = params.get("password").getAsString();
+
+    //Login Fail
+    if(!db.checkLogin(username,password)) {
+      final JsonObject failMsg = new JsonObject();
+      failMsg.addProperty("id", "loginFail");
+      session.sendMessage(new TextMessage(failMsg.toString()));
+    } // Else Login success => List rooms
+    else {
+      final JsonArray roomsArray = new JsonArray();
+      for (String roomName : this.roomManager.getAllRoomNames()) {
+        roomsArray.add(roomName);
+      }
+      final JsonObject loginSuccMsg = new JsonObject();
+      loginSuccMsg.addProperty("id", "loginSuccess");
+      loginSuccMsg.add("data", roomsArray);
+      session.sendMessage(new TextMessage(loginSuccMsg.toString()));
+    }
   }
 
   private void joinRoom(JsonObject params, WebSocketSession session) throws IOException {
     final String roomName = params.get("room").getAsString();
     final String name = params.get("name").getAsString();
     log.info("PARTICIPANT {}: trying to join room {}", name, roomName);
-
+    String role = db.getRoleByName(name);
     Room room = roomManager.getRoom(roomName);
-    final UserSession user = room.join(name, session);
+    final UserSession user = room.join(name, role, session);
     registry.register(user);
   }
 
   private void leaveRoom(UserSession user) throws IOException {
     final Room room = roomManager.getRoom(user.getRoomName());
-    // room.leave(user);
+    room.leave(user);
     user.close();
-    if (room.getParticipants().isEmpty()) {
+    if (room.getParticipants().isEmpty() && room.getTeacher() == null) {
       roomManager.removeRoom(room);
     }
   }
