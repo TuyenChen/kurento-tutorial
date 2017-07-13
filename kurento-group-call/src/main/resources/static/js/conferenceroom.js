@@ -22,6 +22,7 @@ var rooms = {};
 var room;
 var name;
 var teacher;
+var speaker;
 
 window.onbeforeunload = function() {
 	ws.close();
@@ -55,6 +56,15 @@ ws.onmessage = function(message) {
 	case 'newParticipantArrived':
 		onNewParticipant(parsedMessage);
 		break;
+	case 'newSpeaker':
+		onNewSpeaker(parsedMessage);
+		break;
+	case 'sitdown':
+		if (speaker != undefined){
+			speaker.dispose();
+			speaker = undefined;
+		}
+	    break;
 	case 'participantLeft':
 		onParticipantLeft(parsedMessage);
 		break;
@@ -65,12 +75,21 @@ ws.onmessage = function(message) {
 		receiveVideoResponse(parsedMessage);
 		break;
 	case 'iceCandidate':
-		participants[parsedMessage.name].rtcPeer.addIceCandidate(parsedMessage.candidate, function (error) {
-	        if (error) {
-		      console.error("Error adding candidate: " + error);
-		      return;
-	        }
-	    });
+		if(speaker != undefined && speaker.name == parsedMessage.name){
+			speaker.rtcPeer.addIceCandidate(parsedMessage.candidate, function (error) {
+		        if (error) {
+			      console.error("Error adding candidate: " + error);
+			      return;
+		        }
+		    });
+		} else {
+			participants[parsedMessage.name].rtcPeer.addIceCandidate(parsedMessage.candidate, function (error) {
+		        if (error) {
+			      console.error("Error adding candidate: " + error);
+			      return;
+		        }
+		    });
+		}
 	    break;
 	default:
 		console.error('Unrecognized message', parsedMessage);
@@ -116,15 +135,78 @@ function register() {
 
 function onNewParticipant(request) {
 	console.log("******* Newbie"+request.name+" *******");
-	var participant = new Student(request.name);
+	if (teacher != undefined && teacher.name == name) {
+		var participant = new Student(request.name);
+	} else {
+		var participant = new ParticipantNoob(request.name);
+	}
 	participants[request.name] = participant;
+}
+function onNewSpeaker(msg) {
+	if (speaker != undefined){
+		speaker.dispose();
+		speaker = undefined;
+	}
+	speaker = new Speaker(msg.name);
+	console.log('Speaker: '+ speaker.name);
+	if (name === msg.name) {
+		var constraints = {
+		audio : true,
+		video : {
+			mandatory : {
+				maxWidth : 320,
+				maxFrameRate : 15,
+				minFrameRate : 15
+			}
+		}
+		};
+		console.log(name + " Ban duoc phat bieu trong phong: " + room);
+	
+		var video = speaker.getVideoElement();
+		var options = {
+		      localVideo: video,
+		      mediaConstraints: constraints,
+		      onicecandidate: speaker.onIceCandidate.bind(speaker)
+		    }
+		speaker.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options,
+			function (error) {
+			  if(error) {
+				  return console.error(error);
+			  }
+			  this.generateOffer (speaker.offerToReceiveVideo.bind(speaker));
+		});
+	} else {
+		
+		var video = speaker.getVideoElement();
+
+		var options = {
+	      remoteVideo: video,
+	      onicecandidate: speaker.onIceCandidate.bind(speaker)
+	    }
+		
+		speaker.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
+				function (error) {
+				  if(error) {
+					  return console.error(error);
+				  }
+				  this.generateOffer (speaker.offerToReceiveVideo.bind(speaker));
+		});;
+	}
 }
 
 function receiveVideoResponse(result) {
 	console.log('$$$$$$'+result.name+'$$$$$$');
-	participants[result.name].rtcPeer.processAnswer (result.sdpAnswer, function (error) {
-		if (error) return console.error (error);
-	});
+
+	if(speaker!==undefined && result.name === speaker.name) {
+		console.log('Speaker: '+ speaker.name);
+		speaker.rtcPeer.processAnswer (result.sdpAnswer, function (error) {
+			if (error) return console.error (error);
+		});
+	} else {
+		participants[result.name].rtcPeer.processAnswer (result.sdpAnswer, function (error) {
+			if (error) return console.error (error);
+		});
+	}
 }
 
 function callResponse(message) {
@@ -150,6 +232,34 @@ function chooseRoom(nameRoom) {
 	console.log("Send msg choose Room: "+nameRoom+". Name: "+name);
 	sendMessage(message);
 }
+
+function chooseSpeaker(nameStudent) {
+	if(name === teacher.name) {
+		var cf = confirm("Allows "+nameStudent+" show video");
+		if (cf == true) {
+			var msg = {
+				id : "chooseSpeaker",
+				room : room,
+				speaker : nameStudent, 
+			};
+			console.log('Choose: '+nameStudent);
+			sendMessage(msg);
+			participants[nameStudent].changeContainerList();
+		}
+	}
+}
+function sitdown() {
+	if (speaker != undefined){
+		var msg = {
+				id : "sitdown",
+				room : room, 
+			};
+		sendMessage(msg);
+		speaker.dispose();
+		speaker = undefined;
+	}
+}
+
 function hanhDongNhuTeacher(msg) {
 
 	var constraints = {
@@ -206,7 +316,7 @@ function teacherComeIn(msg) {
 
 function newNoobJoin(name) {
 	console.log(name + " registered in room " + room);
-	var participant = new Student(name);
+	var participant = new ParticipantNoob(name);
 	participants[name] = participant;
 }
 function newStudent(name) {

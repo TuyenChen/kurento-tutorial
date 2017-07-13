@@ -32,10 +32,9 @@ body {
 #chat form { width: 73%; margin: 10px auto; background: #000; padding: 3px; position: fixed; bottom: 0;}
 #chat form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
 #chat form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-#chat #messages { list-style-type: none; margin: 0; padding-top: 10px; }
+#chat #messages { list-style-type: none; margin: 0; padding-top: 10px; overflow-y: scroll; max-height: 250px;}
 #chat #messages li { padding: 5px 10px; margin-bottom: 2px;}
 #chat #messages li:nth-child(odd) { background: #eee; }
-
 #chat #messages li:nth-child(even) { background: #74f2ca; }
 input[type=checkbox], input[type=radio] {
 	border: 1px solid #c0c0c0;
@@ -134,7 +133,7 @@ select {
 	min-height: 400px;
     background-color: #6bc3bb;
     border-radius: 10px;
-    padding: 10px 40px;
+    padding: 10px 15px;
     margin: 0;
 }
 #room #listNames li{
@@ -148,7 +147,21 @@ select {
 	box-shadow: 2px 2px 1px #888888;
 	text-align: center;
 }
-
+#room #listNames li i {
+	margin-left: 20px;
+}
+#room #listNames .listStudent {
+	cursor: pointer;
+}
+#room #listNames .teacher {
+	background-color: #ed6e34;
+}
+#room #listNames .speaker {
+	cursor: pointer;
+	margin-right: 40px;
+    min-width: 100px;
+    max-width: 120px;
+}
 .join {
 	position: relative;
 	margin: 0 auto;

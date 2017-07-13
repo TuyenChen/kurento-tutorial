@@ -49,6 +49,7 @@ public class Room implements Closeable {
   private final MediaPipeline pipeline;
   private final String name;
   public UserSession teacher;
+  public UserSession speaker;
 
   public String getName() {
     return name;
@@ -219,7 +220,60 @@ public class Room implements Closeable {
   public UserSession getTeacher() {
     return this.teacher;
   }
+  public void standUp(String speakerName) throws IOException {
+    if (this.speaker != null) {
+      for (final UserSession participant : participants.values()) {
+        if (!speakerName.equals(participant.getName())) {
+          participant.cancelVideoFrom(speaker);
+        }
+      }
+      if (teacher != null){
+        teacher.cancelVideoFrom(speaker);
+      }
+    }
+    this.speaker = getParticipant(speakerName);
 
+    final JsonObject newSpeakerMsg = new JsonObject();
+    newSpeakerMsg.addProperty("id", "newSpeaker");
+    newSpeakerMsg.addProperty("name", speaker.getName());
+
+    log.info("Send message New Speaker: {} to all members", speaker.getName());
+    for (final UserSession participant : participants.values()) {
+      try {
+        participant.sendMessage(newSpeakerMsg);
+      } catch (final IOException e) {
+        log.debug("ROOM {}: participant {} could not be notified", name, participant.getName(), e);
+      }
+    }
+    if (teacher != null){
+      teacher.sendMessage(newSpeakerMsg);
+    }
+  }
+
+  public void sitdown() throws IOException {
+    if (this.speaker != null) {
+      for (final UserSession participant : participants.values()) {
+        if (!speaker.getName().equals(participant.getName())) {
+          participant.cancelVideoFrom(speaker);
+        }
+      }
+      if (teacher != null){
+        teacher.cancelVideoFrom(speaker);
+      }
+    }
+    this.speaker = null;
+    final JsonObject speakerSitdownMsg = new JsonObject();
+    speakerSitdownMsg.addProperty("id", "sitdown");
+    for (final UserSession participant : participants.values()) {
+      try {
+        participant.cancelVideoFrom(speaker);
+        participant.sendMessage(speakerSitdownMsg);
+      } catch (final IOException e) {
+        log.debug("ROOM {}: participant {} could not be notified", name, participant.getName(), e);
+      }
+    }
+    
+  }
   public void broadcastMsg(JsonObject msg) throws IOException {
     for (final UserSession participant : this.getParticipants()) {
         participant.sendMessage(msg);
