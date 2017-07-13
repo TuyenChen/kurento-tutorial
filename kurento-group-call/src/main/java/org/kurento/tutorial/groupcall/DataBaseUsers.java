@@ -8,12 +8,12 @@ public class DataBaseUsers {
 
 	public DataBaseUsers () {
 		this.list = new ArrayList<>();
-		Account ac1 = new Account("pvhai", "hai", "teacher");
+		Account ac1 = new Account("pvhai", "123", "teacher");
 		Account ac2 = new Account("tuyen", "123", "student");
-		Account ac3 = new Account("dung", "dungham", "student");
-		Account ac4 = new Account("nam", "deptrai", "student");
-		Account ac5 = new Account("huy", "chure", "student");
-		Account ac6 = new Account("phat", "mytom", "student");
+		Account ac3 = new Account("dung", "123", "student");
+		Account ac4 = new Account("nam", "123", "student");
+		Account ac5 = new Account("huy", "123", "student");
+		Account ac6 = new Account("phat", "123", "student");
 		this.list.add(ac1);
 		this.list.add(ac2);
 		this.list.add(ac3);

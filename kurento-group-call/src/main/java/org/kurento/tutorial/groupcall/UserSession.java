@@ -180,7 +180,7 @@ public class UserSession implements Closeable {
   }
 
   public void cancelVideoFrom(final String senderName) {
-    log.debug("PARTICIPANT {}: canceling video reception from {}", this.name, senderName);
+    log.info("PARTICIPANT {}: canceling video reception from {}", this.name, senderName);
     final WebRtcEndpoint incoming = incomingMedia.remove(senderName);
 
     log.debug("PARTICIPANT {}: removing endpoint for {}", this.name, senderName);

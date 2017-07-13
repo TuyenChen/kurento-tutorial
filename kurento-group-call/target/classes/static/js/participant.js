@@ -272,18 +272,36 @@ function Student(name) {
 
 	var containerList = document.createElement('li');
 	containerList.id = name;
+
 	containerList.onclick = function(){
-		chooseSpeaker(containerList.id);
+		if(containerList.className == 'listStudent') {
+			chooseSpeaker(containerList.id);
+		} else {
+			containerList.className = 'listStudent';
+			sitdown();
+			xclose.style.display = 'none';
+		}
 	}
 	var spanList = document.createElement('span');
 	spanList.appendChild(document.createTextNode(name));
 	containerList.appendChild(spanList);
+	var xclose = document.createElement('i');
+		xclose.className = 'fa fa-close';
+		xclose.style.display = 'none';
+		containerList.appendChild(xclose);
 	document.getElementById('listNames').appendChild(containerList);
 	containerList.className = 'listStudent';
+
 	this.getElement = function() {
 		return container;
 	}
+	this.changeContainerList = function() {
+		containerList.className = 'speaker';
+		xclose.style.display = 'inline';
+	}
+	xclose.onclick = function(){
 
+	}
 	this.getVideoElement = function() {
 		return video;
 	}
@@ -424,7 +442,9 @@ function Speaker(name) {
 		if(this.rtcPeer){
 			this.rtcPeer.dispose();
 		}
-		container.parentNode.removeChild(container);
+		if (container.parentNode != undefined) {
+			container.parentNode.removeChild(container);
+		}
 		// containerList.parentNode.removeChild(containerList);
 	};
 }

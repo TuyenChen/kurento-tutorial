@@ -96,6 +96,9 @@ public class CallHandler extends TextWebSocketHandler {
       case "chooseSpeaker":
         chooseSpeaker(jsonMessage,session);
         break;
+      case "sitdown":
+        sitdown(jsonMessage);
+        break;
       default:
         break;
     }
@@ -147,6 +150,12 @@ public class CallHandler extends TextWebSocketHandler {
     final String speaker = params.get("speaker").getAsString();
     Room room = roomManager.getRoom(roomName);
     room.standUp(speaker);
+  }
+
+  private void sitdown(JsonObject params) throws IOException {
+    final String roomName = params.get("room").getAsString();
+    Room room = roomManager.getRoom(roomName);
+    room.sitdown();
   }
 
   private void joinRoom(JsonObject params, WebSocketSession session) throws IOException {
